@@ -1,0 +1,7 @@
+.env
+*.pdf
+*.docx
+*.mp3
+*.json
+env/
+inputfiles/
