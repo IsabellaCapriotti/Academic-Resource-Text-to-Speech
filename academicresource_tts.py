@@ -12,9 +12,10 @@ from tkinter.scrolledtext import ScrolledText
 # Read environment vars from config file
 load_dotenv()
 
-# Voice config vars
+# Default config vars
 VOICES = ['en-US-Standard-A','en-US-Standard-B','en-US-Standard-C','en-US-Standard-D','en-US-Standard-E','en-US-Standard-F','en-US-Standard-G','en-US-Standard-H','en-US-Standard-I','en-US-Standard-J','en-US-Wavenet-A','en-US-Wavenet-B','en-US-Wavenet-C','en-US-Wavenet-D','en-US-Wavenet-E','en-US-Wavenet-F','en-US-Wavenet-G','en-US-Wavenet-H','en-US-Wavenet-I','en-US-Wavenet-J']
 DEFAULT_VOICE = 'en-US-Wavenet-D'
+DEFAULT_SPEED = 1.0
 
 #############################################
 # PROCESSING FILE 
@@ -83,7 +84,15 @@ def get_input_file():
 # TTS API CALLS
 #############################################
 
-def gen_mp3(raw_text, filename, voice=DEFAULT_VOICE):
+# Function that makes the actual API calls to Google's text to speech API and generates
+# the MP3 file. 
+# Required parameters: 
+#   raw_text: text to read. 
+#   filename: output file to generate (does not include the .mp3 extension)
+# Optional parameters:
+#   voice: the voice to configure the request with. 
+#   speed: the speaking speed to configure the request with. 
+def gen_mp3(raw_text, filename, voice=DEFAULT_VOICE, speed=DEFAULT_SPEED):
     # Each request can only handle 5000 characters of input, so break raw text into 5000-character chunks
     curr_offset = 0 
     complete_audio = b''
@@ -102,7 +111,7 @@ def gen_mp3(raw_text, filename, voice=DEFAULT_VOICE):
 
         voice_config = texttospeech.VoiceSelectionParams(language_code="en-US", name=voice)  
 
-        audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+        audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3, speaking_rate=speed)
 
         # Get response
         res = client.synthesize_speech(input=to_speak, voice=voice_config, audio_config=audio_config)
@@ -139,10 +148,17 @@ def on_gen_mp3_btn_click():
     print('got text', text)
     loading.grid(row=6, column=4)
     
-    # Read current voice selection
-    voice_idx = voice_listbox.curselection()[0]
+    # Read current voice selection, setting to default if none are selected 
+    if len(voice_listbox.curselection()) > 0:
+        voice_idx = voice_listbox.curselection()[0]
+        voice = VOICES[voice_idx]
+    else:
+        voice = DEFAULT_VOICE
 
-    gen_mp3(text, filename_entry.get(), VOICES[voice_idx])
+    # Read current speed selection
+    speed = float(speed_select.get())
+
+    gen_mp3(text, filename_entry.get(), voice=voice, speed=speed)
     loading.grid_remove()
 
     # Open MP3 file automatically if option is checked
@@ -192,7 +208,7 @@ open_mp3_check = ttk.Checkbutton(options_menu, text='Open MP3 file automatically
 open_mp3_check.grid(row=2, column=0)
 
 # Voice select 
-voice_select_lbl = ttk.Label(options_menu, text='Voice Select')
+voice_select_lbl = ttk.Label(options_menu, text='Voice Select', padding=(0,30,0,0))
 voice_select_lbl.grid(row=3, column=0)
 
 voice_select_outer = ttk.Frame(options_menu)
@@ -207,6 +223,14 @@ voice_listbox.see(VOICES.index(DEFAULT_VOICE))
 voice_scrollbar = ttk.Scrollbar(voice_select_outer, orient=VERTICAL, command=voice_listbox.yview)
 voice_listbox.configure(yscrollcommand=voice_scrollbar.set)
 voice_scrollbar.grid(column=1, row=0, sticky=(N,S))
+
+# Speed select
+speed_select_lbl = ttk.Label(options_menu, text="Adjust speaking speed", padding=(0,30,0,0))
+speed_select_lbl.grid(row=5, column=0)
+
+speed_select = ttk.Scale(options_menu, orient=HORIZONTAL, length=100, from_=.25, to=4.0)
+speed_select.grid(row=6, column=0)
+speed_select.set(DEFAULT_SPEED)
 
 # File name 
 filename_frame = ttk.Frame(root_frame, padding=(0, 20))
@@ -228,14 +252,5 @@ gen_mp3_btn.grid(row=6, column=0, columnspan=3)
 
 # Loading wheel 
 loading = ttk.Label(root_frame, text='Loading...')
-
-# # Strobe text
-# s = ttk.Style()
-# strobe_window = ttk.Frame(root)
-# strobe_window.columnconfigure(1, weight=1)
-# strobe_window.grid(row=0, column=7, columnspan=3)
-
-# strobe_lbl = ttk.Label(strobe_window)
-# strobe_lbl.grid(row=0, column=0)
 
 root.mainloop()
