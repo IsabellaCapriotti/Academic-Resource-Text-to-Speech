@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from google.cloud import texttospeech
 import os 
+import subprocess
 import mimetypes
 import pdfplumber
 from tkinter import * 
@@ -10,6 +11,10 @@ from tkinter.scrolledtext import ScrolledText
 
 # Read environment vars from config file
 load_dotenv()
+
+# Voice config vars
+VOICES = ['en-US-Standard-A','en-US-Standard-B','en-US-Standard-C','en-US-Standard-D','en-US-Standard-E','en-US-Standard-F','en-US-Standard-G','en-US-Standard-H','en-US-Standard-I','en-US-Standard-J','en-US-Wavenet-A','en-US-Wavenet-B','en-US-Wavenet-C','en-US-Wavenet-D','en-US-Wavenet-E','en-US-Wavenet-F','en-US-Wavenet-G','en-US-Wavenet-H','en-US-Wavenet-I','en-US-Wavenet-J']
+DEFAULT_VOICE = 'en-US-Wavenet-D'
 
 #############################################
 # PROCESSING FILE 
@@ -78,7 +83,7 @@ def get_input_file():
 # TTS API CALLS
 #############################################
 
-def gen_mp3(raw_text, filename):
+def gen_mp3(raw_text, filename, voice=DEFAULT_VOICE):
     # Each request can only handle 5000 characters of input, so break raw text into 5000-character chunks
     curr_offset = 0 
     complete_audio = b''
@@ -95,7 +100,7 @@ def gen_mp3(raw_text, filename):
         # Configure voice and audio format
         to_speak = texttospeech.SynthesisInput(text=curr_chunk)
 
-        voice_config = texttospeech.VoiceSelectionParams(language_code="en-US", name='en-US-Wavenet-D')  
+        voice_config = texttospeech.VoiceSelectionParams(language_code="en-US", name=voice)  
 
         audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
 
@@ -116,6 +121,11 @@ def gen_mp3(raw_text, filename):
 
     print('Created audio file ' + filename + '.mp3')
 
+# Opens the newly created MP3 file in the system's default music player. 
+def open_mp3(filename):
+    base_path = os.getcwd()
+    path = '"' + base_path + "\\" + filename + '.mp3"'
+    os.startfile(path, 'open')
 
 #############################################
 # TKINTER EVENT CALLBACKS
@@ -123,12 +133,21 @@ def gen_mp3(raw_text, filename):
 # Fetches the raw text from the text entry when the button to 
 # generate an MP3 file is clicked.
 def on_gen_mp3_btn_click():
+
+    # Read text 
     text = text_entry.get('1.0', 'end')
     print('got text', text)
     loading.grid(row=6, column=4)
+    
+    # Read current voice selection
+    voice_idx = voice_listbox.curselection()[0]
 
-    gen_mp3(text, filename_entry.get())
+    gen_mp3(text, filename_entry.get(), VOICES[voice_idx])
     loading.grid_remove()
+
+    # Open MP3 file automatically if option is checked
+    if open_mp3_check_val.get():
+        open_mp3(filename_entry.get())
 
 # Inserts the text on the clipboard to the current cursor position
 # when a right click is triggered on the entry box. 
@@ -147,7 +166,8 @@ root.columnconfigure(0, weight=1)
 
 root_frame = ttk.Frame(root)
 root_frame.grid(row=0,column=0, sticky=(N,S,E,W))
-root_frame.columnconfigure(0, weight=1)
+root_frame.columnconfigure(0, weight=2)
+root_frame.columnconfigure(3, weight=1)
 root_frame['padding'] = 20 
 
 # Text entry 
@@ -155,16 +175,38 @@ text_entry_lbl = ttk.Label(root_frame, text="Enter text to read:", font=("TkHead
 text_entry_lbl.grid(row=0, column=0, columnspan=2, sticky=(N,W))
 
 text_entry = ScrolledText(root_frame, width=10, height=30)
-text_entry.grid(row=1, column=0, rowspan=3, columnspan=4, sticky=(E,W))
-# text_entry = Text(root_frame, width=10, height=30)
-# text_entry.grid(row=1, column=0, rowspan=3, columnspan=4, sticky=(E,W))
-
-# scroll = ttk.Scrollbar(text_entry, orient=VERTICAL, command=text_entry.yview)
-# text_entry.configure(yscrollcommand=scroll.set)
-# scroll.pack(side=RIGHT)
+text_entry.grid(row=1, column=0, rowspan=3, columnspan=3, sticky=(E,W))
 
 # Enable paste into text entry 
 text_entry.bind('<ButtonPress-3>', on_entry_paste)
+
+# Options Menu 
+options_menu = ttk.Frame(root_frame)
+options_menu.grid(row=1, column=3)
+options_lbl = ttk.Label(root_frame, text="Options",font=("TkHeadingFont", 22))
+options_lbl.grid(row=0, column=3)
+
+# Automatic MP3 open
+open_mp3_check_val = BooleanVar(value=True)
+open_mp3_check = ttk.Checkbutton(options_menu, text='Open MP3 file automatically?', variable=open_mp3_check_val, onvalue=True, offvalue=False)
+open_mp3_check.grid(row=2, column=0)
+
+# Voice select 
+voice_select_lbl = ttk.Label(options_menu, text='Voice Select')
+voice_select_lbl.grid(row=3, column=0)
+
+voice_select_outer = ttk.Frame(options_menu)
+voice_select_outer.grid(row=4, column=0)
+
+voices_var = StringVar(value=VOICES)
+voice_listbox = Listbox(voice_select_outer, height=10, listvariable=voices_var)
+voice_listbox.grid(row=0, column=0, sticky=(N,S,E,W))
+voice_listbox.selection_set(VOICES.index(DEFAULT_VOICE))
+voice_listbox.see(VOICES.index(DEFAULT_VOICE))
+
+voice_scrollbar = ttk.Scrollbar(voice_select_outer, orient=VERTICAL, command=voice_listbox.yview)
+voice_listbox.configure(yscrollcommand=voice_scrollbar.set)
+voice_scrollbar.grid(column=1, row=0, sticky=(N,S))
 
 # File name 
 filename_frame = ttk.Frame(root_frame, padding=(0, 20))
