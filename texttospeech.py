@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from google.cloud import texttospeech
+from google.oauth2 import service_account
 import os 
 import subprocess
 import mimetypes
@@ -11,6 +12,11 @@ from tkinter.scrolledtext import ScrolledText
 
 # Read environment vars from config file
 load_dotenv()
+
+# Determine absolute file path to JSON credentials 
+base_path = os.getcwd()
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = base_path + '/' + os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+credentials = service_account.Credentials.from_service_account_file(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
 
 # Default config vars
 VOICES = ['en-US-Standard-A','en-US-Standard-B','en-US-Standard-C','en-US-Standard-D','en-US-Standard-E','en-US-Standard-F','en-US-Standard-G','en-US-Standard-H','en-US-Standard-I','en-US-Standard-J','en-US-Wavenet-A','en-US-Wavenet-B','en-US-Wavenet-C','en-US-Wavenet-D','en-US-Wavenet-E','en-US-Wavenet-F','en-US-Wavenet-G','en-US-Wavenet-H','en-US-Wavenet-I','en-US-Wavenet-J']
@@ -104,7 +110,7 @@ def gen_mp3(raw_text, filename, voice=DEFAULT_VOICE, speed=DEFAULT_SPEED):
         requests_sent += 1
 
         # Initialize connection to API 
-        client = texttospeech.TextToSpeechClient()
+        client = texttospeech.TextToSpeechClient(credentials=credentials)
 
         # Configure voice and audio format
         to_speak = texttospeech.SynthesisInput(text=curr_chunk)
